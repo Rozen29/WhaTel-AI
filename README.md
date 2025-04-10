@@ -121,6 +121,11 @@ whatel-ai/
 - Verify API keys if AI services return authorization errors
 - Ensure proper phone number format when adding users (include country code)
 
+> **NOTE:** This project has some features that are not working yet such as:
+> /logs for logs, errors and others are not implemented yet. 
+> /history is not working properly. 
+so if you have any criticism or suggestions you can let me know.
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
