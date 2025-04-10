@@ -45,7 +45,7 @@ This project integrates WhatsApp and Telegram messaging platforms with AI servic
 
 2. Install dependencies:
    ```
-   npm install whatsapp-web.js axios qrcode-terminal dotenv node-telegram-bot-api
+   npm install
    ```
 
 3. Create a `.env` file in the root directory with the following variables:
