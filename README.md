@@ -1,6 +1,9 @@
-# WhatsApp-Telegram AI Integration Bot
+# WhaTel-AI
 
-## Overview
+> **NOTE:** This project was fully developed by AI with approximately 1 month of work.
+> If this project has many shortcomings and bugs or errors, please report them and they will be fixed immediately.
+
+## WhatsApp-Telegram AI Integration Bot
 
 This project integrates WhatsApp and Telegram messaging platforms with AI services (Groq and Gemini) to create a versatile AI assistant. The bot can handle text conversations and image analysis across both platforms, with centralized administration via Telegram.
 
@@ -36,13 +39,13 @@ This project integrates WhatsApp and Telegram messaging platforms with AI servic
 
 1. Clone the repository:
    ```
-   git clone https://github.com/Rozen29/WhaTel-AI.git
+   https://github.com/Rozen29/WhaTel-AI.git
    cd WhaTel-AI
    ```
 
 2. Install dependencies:
    ```
-   npm install
+   npm install whatsapp-web.js axios qrcode-terminal dotenv node-telegram-bot-api
    ```
 
 3. Create a `.env` file in the root directory with the following variables:
@@ -74,7 +77,7 @@ This project integrates WhatsApp and Telegram messaging platforms with AI servic
 - `/stop_chatbot` - Disable the chatbot
 - `/add [phone_number]` - Add a new authorized user (requires admin password)
 - `/remove [phone_number]` - Remove an authorized user (requires admin password)
-- `/tampil_model` - Display available AI models
+- `/show_model` - Display available AI models
 - `/settings` - Show all available settings
 - `/settings safety.[field] [on/off]` - Modify Gemini safety settings
 - `/settings config.[field] [value]` - Modify Gemini generation configuration
@@ -87,7 +90,7 @@ This project integrates WhatsApp and Telegram messaging platforms with AI servic
 ## File Structure
 
 ```
-whatsapp-telegram-ai-bot/
+whatel-ai/
 ├── index.js              # Main application file
 ├── .env                  # Environment variables (create this)
 ├── package.json          # Project dependencies
