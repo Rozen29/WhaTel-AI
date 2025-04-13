@@ -1,4 +1,5 @@
 require('dotenv').config();
+const telegramErrorChatId = process.env.TELEGRAM_ERROR_CHAT_ID || null;
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const TelegramBot = require('node-telegram-bot-api');
 const qrcode = require('qrcode-terminal');
@@ -6,33 +7,45 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 
+// Letakkan logError di sini, karena variabel global sudah tersedia.
+function logError(context, error) {
+  const errMsg = `[${new Date().toISOString()}] Error in ${context}: ${error.response?.data || error.message || error}`;
+  console.error(errMsg);
+  if (telegramErrorChatId && tgBot) {  
+    tgBot.sendMessage(telegramErrorChatId, errMsg)
+      .catch(e => console.error('Failed to send error to Telegram:', e));
+  }
+}
+
+
 const imageStorageDir = path.join(__dirname, 'folder-foto');
 const conversationsDir = path.join(__dirname, 'conversations');
 const greetedUsersFile = path.join(__dirname, 'greeted_users.json');
 const authorizedUsersFile = path.join(__dirname, 'authorized_users.json');
 
-if (!fs.existsSync(imageStorageDir)) {
-  fs.mkdirSync(imageStorageDir, { recursive: true });
-}
-if (!fs.existsSync(conversationsDir)) {
-  fs.mkdirSync(conversationsDir, { recursive: true });
-}
+// Create directories if they do not exist
+if (!fs.existsSync(imageStorageDir)) fs.mkdirSync(imageStorageDir, { recursive: true });
+if (!fs.existsSync(conversationsDir)) fs.mkdirSync(conversationsDir, { recursive: true });
 
 function logError(context, error) {
-  console.error(`[${new Date().toISOString()}] Error in ${context}:`, error.response?.data || error.message || error);
+  const errMsg = `[${new Date().toISOString()}] Error in ${context}: ${error.response?.data || error.message || error}`;
+  console.error(errMsg);
+  // Send error to Telegram if TELEGRAM_ERROR_CHAT_ID is available
+  if (telegramErrorChatId && tgBot) {
+    tgBot.sendMessage(telegramErrorChatId, errMsg).catch(e => console.error('Failed to send error to Telegram:', e));
+  }
 }
 
 const telegramToken = process.env.TELEGRAM_BOT_TOKEN;
-const MODEL_CHANGE_PASSWORD = process.env.MODEL_CHANGE_PASSWORD || 'admin123';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const TEMPERATURE = 0.9;
 let chatbotEnabled = true;
 
+// File-based authorized users (with default data)
 let authorizedUsers = {
-  admin: ['6280987564456@c.us'],
-  users: ['6281234567890@c.us']
+  admin: ['6282183206692@c.us'],
+  users: ['6288286723815@c.us']
 };
-
 function loadAuthorizedUsers() {
   try {
     if (fs.existsSync(authorizedUsersFile)) {
@@ -54,12 +67,12 @@ function saveAuthorizedUsers() {
   }
 }
 loadAuthorizedUsers();
-
 function isAuthorized(sender) {
   return (authorizedUsers.admin.includes(sender) || authorizedUsers.users.includes(sender));
 }
 
-const greetedUsers = new Set();
+// File-based greeted users
+let greetedUsers = new Set();
 try {
   if (fs.existsSync(greetedUsersFile)) {
     const data = fs.readFileSync(greetedUsersFile, 'utf8');
@@ -81,18 +94,8 @@ function generateRandomID() {
 }
 
 let geminiSettings = {
-  safety: {
-    harassment: false,
-    hate: false,
-    sexuallyExplicit: false,
-    dangerousContent: false
-  },
-  generationConfig: {
-    temperature: 0.9,
-    topP: 0.95,
-    topK: 40,
-    maxOutputTokens: 2048
-  }
+  safety: { harassment: false, hate: false, sexuallyExplicit: false, dangerousContent: false },
+  generationConfig: { temperature: 0.9, topP: 0.95, topK: 40, maxOutputTokens: 2048 }
 };
 
 let API_PROVIDERS = [
@@ -126,29 +129,14 @@ let API_PROVIDERS = [
     available: true
   }
 ];
-
 let currentProviderIndex = 0;
 
 const AUTHORIZED_GREETING = `Hello! Welcome to the AI Assistant service.
-You can use /history to view your chat history, /settings to configure the model, /show_model to view the list of models, and /version to check the bot version.`;
-
-const SYSTEM_PROMPT = `You are ROZEN AI, an assistant and AI agent on WhatsApp.
-- Provide brief, concise, and useful answers.
-- Answer in the same language as the question.
-- If you do not know the answer, be honest.
-- Do not provide incorrect or misleading information.
-- Avoid overly lengthy responses, but if the user wants detailed and complex answers, provide them.
-- Remember the previous conversation context to give personalized and relevant answers.
-- Use references from previous conversations when relevant.`;
-
-const VISION_PROMPT = `Analyze this image and provide a brief but comprehensive description.
-Focus on the main elements in the image.
-Answer in English unless requested otherwise.
-Provide factual and relevant information.`;
-
-const OCR_PROMPT = `Extract all visible text from this image.
-Preserve the original text formatting as much as possible.
-If any text is unclear, mark it as [unreadable].`;
+Use /history to view chat history, /settings to configure the model, /show_model to list available models, and /show to check the bot version.`;
+const SYSTEM_PROMPT = `You are ROZEN AI, an assistant and AI agent.
+Answer briefly and clearly.`;
+const VISION_PROMPT = `Analyze this image and provide a brief but comprehensive description.`;
+const OCR_PROMPT = `Extract the text visible in this image.`;
 
 function getConversationFilePath(sender) {
   const sanitized = sender.replace('@c.us', '');
@@ -192,49 +180,32 @@ async function saveImageFromMessage(msg) {
   }
 }
 
-const client = new Client({
-  authStrategy: new LocalAuth(),
-  puppeteer: { headless: true }
-});
-
+const client = new Client({ authStrategy: new LocalAuth(), puppeteer: { headless: true } });
 client.on('qr', (qr) => {
-  console.log('QR Code for WhatsApp received, please scan the following:');
+  console.log('QR Code for WhatsApp received, please scan:');
   qrcode.generate(qr, { small: true });
 });
-
-client.on('ready', () => {
-  console.log('WhatsApp client is ready.');
-});
+client.on('ready', () => { console.log('WhatsApp client is ready.'); });
 client.initialize();
 
 async function askAI(prompt, isVision = false, imageContent = null, conversation = null) {
   try {
     const provider = API_PROVIDERS[currentProviderIndex];
-    if (!provider.apiKey) {
-      return "Sorry, the API key is not available for this provider.";
-    }
+    if (!provider.apiKey) return "API key not available.";
     let modelName, apiUrl, payload;
     if (isVision && imageContent) {
       if (provider.name === 'Gemini') {
         modelName = provider.visionModels[provider.currentVisionModelIndex].name;
         apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${provider.apiKey}`;
         payload = {
-          contents: [
-            {
-              parts: [
-                { text: `${VISION_PROMPT}\n\n${prompt}` },
-                {
-                  inline_data: {
-                    mime_type: "image/jpeg",
-                    data: imageContent
-                  }
-                }
-              ]
-            }
-          ],
-          safety_settings: Object.entries(geminiSettings.safety).map(([category, blocked]) => ({
-            category: category.toUpperCase(),
-            threshold: blocked ? "BLOCK_MEDIUM_AND_ABOVE" : "BLOCK_ONLY_HIGH"
+          contents: [{
+            parts: [
+              { text: `${VISION_PROMPT}\n\n${prompt}` },
+              { inline_data: { mime_type: "image/jpeg", data: imageContent } }
+            ]
+          }],
+          safety_settings: Object.entries(geminiSettings.safety).map(([cat, blocked]) => ({
+            category: cat.toUpperCase(), threshold: blocked ? "BLOCK_MEDIUM_AND_ABOVE" : "BLOCK_ONLY_HIGH"
           })),
           generation_config: geminiSettings.generationConfig
         };
@@ -257,15 +228,14 @@ async function askAI(prompt, isVision = false, imageContent = null, conversation
       if (provider.name === 'Gemini') {
         modelName = provider.models[provider.currentModelIndex].name;
         apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${provider.apiKey}`;
-        const messages = conversation ? conversation.map(msg => ({
-          role: msg.role === 'system' ? 'user' : msg.role,
-          parts: [{ text: msg.content }]
+        const messages = conversation ? conversation.map(m => ({
+          role: m.role === 'system' ? 'user' : m.role,
+          parts: [{ text: m.content }]
         })) : [{ role: 'user', parts: [{ text: prompt }] }];
         payload = {
           contents: messages,
-          safety_settings: Object.entries(geminiSettings.safety).map(([category, blocked]) => ({
-            category: category.toUpperCase(),
-            threshold: blocked ? "BLOCK_MEDIUM_AND_ABOVE" : "BLOCK_ONLY_HIGH"
+          safety_settings: Object.entries(geminiSettings.safety).map(([cat, blocked]) => ({
+            category: cat.toUpperCase(), threshold: blocked ? "BLOCK_MEDIUM_AND_ABOVE" : "BLOCK_ONLY_HIGH"
           })),
           generation_config: geminiSettings.generationConfig
         };
@@ -276,109 +246,187 @@ async function askAI(prompt, isVision = false, imageContent = null, conversation
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: prompt }
         ];
-        payload = {
-          model: modelName,
-          messages: messages,
-          temperature: TEMPERATURE
-        };
+        payload = { model: modelName, messages: messages, temperature: TEMPERATURE };
       }
     }
     const headers = { 'Content-Type': 'application/json' };
-    if (provider.name === 'Groq') {
-      headers['Authorization'] = `Bearer ${provider.apiKey}`;
-    }
+    if (provider.name === 'Groq') headers['Authorization'] = `Bearer ${provider.apiKey}`;
     const response = await axios.post(apiUrl, payload, { headers });
     if (provider.name === 'Gemini') {
-      if (response.data.candidates && response.data.candidates[0].content) {
+      if (response.data.candidates && response.data.candidates[0].content)
         return response.data.candidates[0].content.parts[0].text;
-      } else {
-        return "Sorry, no response received from the Gemini API.";
-      }
+      else return "No response from Gemini API.";
     } else if (provider.name === 'Groq') {
-      if (response.data.choices && response.data.choices[0].message) {
+      if (response.data.choices && response.data.choices[0].message)
         return response.data.choices[0].message.content;
-      } else {
-        return "Sorry, no response received from the Groq API.";
-      }
+      else return "No response from Groq API.";
     }
   } catch (error) {
     logError('askAI', error);
-    return `Sorry, an error occurred: ${error.message || 'Unknown error'}`;
+    return "Sorry, an error occurred.";
   }
 }
 
 client.on('message', async (msg) => {
-  if (!chatbotEnabled) return;
-  if (msg.from.endsWith('@g.us')) return;
-  const sender = msg.from;
-  if (!isAuthorized(sender)) return;
-  if (!greetedUsers.has(sender)) {
-    greetedUsers.add(sender);
-    saveGreetedUsers();
-    msg.reply(AUTHORIZED_GREETING);
-    const conv = loadConversation(sender);
-    saveConversation(sender, conv);
-    return;
-  }
-  let conversation = loadConversation(sender);
-  if (msg.hasMedia) {
-    const imageInfo = await saveImageFromMessage(msg);
-    if (imageInfo && imageInfo.mediaType.startsWith('image/')) {
-      conversation.push({ role: 'user', content: msg.body || 'Analyze this image' });
-      const aiResp = await askAI(msg.body || 'Analyze this image', true, imageInfo.mediaData, null);
-      conversation.push({ role: 'assistant', content: aiResp });
-      saveConversation(sender, conversation);
-      msg.reply(aiResp);
+  try {
+    if (!chatbotEnabled || msg.from.endsWith('@g.us')) return;
+    const sender = msg.from;
+    if (!isAuthorized(sender)) return;
+    if (!greetedUsers.has(sender)) {
+      greetedUsers.add(sender);
+      saveGreetedUsers();
+      msg.reply(AUTHORIZED_GREETING);
+      const conv = loadConversation(sender);
+      saveConversation(sender, conv);
       return;
     }
+    let conversation = loadConversation(sender);
+    if (msg.hasMedia) {
+      const imageInfo = await saveImageFromMessage(msg);
+      if (imageInfo && imageInfo.mediaType.startsWith('image/')) {
+        conversation.push({ role: 'user', content: msg.body || 'Analyze this image' });
+        const aiResp = await askAI(msg.body || 'Analyze this image', true, imageInfo.mediaData, null);
+        conversation.push({ role: 'assistant', content: aiResp });
+        saveConversation(sender, conversation);
+        msg.reply(aiResp);
+        return;
+      }
+    }
+    conversation.push({ role: 'user', content: msg.body });
+    const aiResp = await askAI(msg.body, false, null, conversation);
+    conversation.push({ role: 'assistant', content: aiResp });
+    saveConversation(sender, conversation);
+    msg.reply(aiResp);
+  } catch (error) {
+    logError('whatsapp-message', error);
   }
-  conversation.push({ role: 'user', content: msg.body });
-  const aiResp = await askAI(msg.body, false, null, conversation);
-  conversation.push({ role: 'assistant', content: aiResp });
-  saveConversation(sender, conversation);
-  msg.reply(aiResp);
 });
 
-const tgBot = new TelegramBot(telegramToken, { polling: true });
-const authenticatedChats = new Set();
-const pendingStartAuth = new Map();
-const startAuthSuspend = new Map();
+// ------- TELEGRAM AUTHORIZATION FIX ------- //
 
-tgBot.onText(/\/version/, (msg) => {
-  tgBot.sendMessage(msg.chat.id, "Bot Version: 1.0.0");
+// Parse TELEGRAM_ADMIN_LIST correctly and convert to an array of strings
+const telegramAdminList = process.env.TELEGRAM_ADMIN_LIST 
+  ? process.env.TELEGRAM_ADMIN_LIST.split(',').map(s => s.trim()) 
+  : [];
+
+// Log admin list for debugging
+console.log('Telegram Admin List (from .env):', telegramAdminList);
+
+const tgBot = new TelegramBot(telegramToken, { polling: true });
+
+// Improved validation function with logging
+function isTelegramAuthorized(msg) {
+  if (!msg || !msg.from) {
+    console.log('Message or msg.from is empty');
+    return false;
+  }
+  
+  const userId = msg.from.id.toString();
+  const isAuthorized = telegramAdminList.includes(userId);
+  
+  console.log(`Checking auth for Telegram user: ${msg.from.username || 'Unknown'}`);
+  console.log(`User ID: ${userId}`);
+  console.log(`Chat ID: ${msg.chat.id}`);
+  console.log(`Admin list: [${telegramAdminList.join(', ')}]`);
+  console.log(`Is authorized: ${isAuthorized}`);
+  
+  return isAuthorized;
+}
+
+// Command /myid for debugging
+tgBot.onText(/\/myid/, (msg) => {
+  const userId = msg.from?.id || 'unknown';
+  const chatId = msg.chat?.id || 'unknown';
+  const username = msg.from?.username || 'unknown';
+  
+  tgBot.sendMessage(msg.chat.id, 
+    `Your Telegram Info:
+User ID: ${userId}
+Chat ID: ${chatId}
+Username: @${username}
+Is in admin list: ${telegramAdminList.includes(userId.toString()) ? 'Yes' : 'No'}
+Admin list contents: ${telegramAdminList.join(', ')}`
+  );
+});
+
+// Command /bypassauth for debugging (temporary bypass)
+tgBot.onText(/\/bypassauth/, (msg) => {
+  const originalAuthFunction = isTelegramAuthorized;
+  isTelegramAuthorized = () => true;
+  
+  tgBot.sendMessage(msg.chat.id, "Authentication bypass enabled for 5 minutes. Use this time to check functionality.");
+  
+  setTimeout(() => {
+    isTelegramAuthorized = originalAuthFunction;
+    tgBot.sendMessage(msg.chat.id, "Authentication bypass disabled. Normal authentication restored.");
+  }, 5 * 60 * 1000);
+});
+
+// Command to temporarily add your user ID to the admin list
+tgBot.onText(/\/addmeasadmin/, (msg) => {
+  if (msg.from) {
+    const userId = msg.from.id.toString();
+    if (!telegramAdminList.includes(userId)) {
+      telegramAdminList.push(userId);
+      tgBot.sendMessage(msg.chat.id, `Added your ID (${userId}) to the admin list temporarily. This is not saved between restarts.`);
+    } else {
+      tgBot.sendMessage(msg.chat.id, `Your ID (${userId}) is already in the admin list.`);
+    }
+  }
+});
+
+// Continue with existing commands
+tgBot.onText(/\/show/, (msg) => { 
+  if (isTelegramAuthorized(msg)) {
+    tgBot.sendMessage(msg.chat.id, "Bot Version: 1.0.1"); 
+  } else {
+    console.log(`User ${msg.from?.id} attempted to use /show but is not authorized`);
+  }
+});
+
+tgBot.onText(/\/version/, (msg) => { 
+  if (isTelegramAuthorized(msg)) {
+    tgBot.sendMessage(msg.chat.id, "Bot Version: 1.0.1"); 
+  } else {
+    console.log(`User ${msg.from?.id} attempted to use /version but is not authorized`);
+  }
 });
 
 tgBot.onText(/\/show_model/, (msg) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /show_model but is not authorized`);
+    return;
+  }
   let text = "List of Models:\n";
-  for (let provider of API_PROVIDERS) {
+  API_PROVIDERS.forEach(provider => {
     text += `\nProvider: ${provider.name}\n`;
     provider.models.forEach(m => { text += `Model: ${m.name}, ID: ${m.id}\n`; });
     if (provider.visionModels && provider.visionModels.length > 0) {
       provider.visionModels.forEach(vm => { text += `Vision Model: ${vm.name}, ID: ${vm.id}\n`; });
     }
-  }
+  });
   tgBot.sendMessage(msg.chat.id, text);
 });
 
 tgBot.onText(/\/settings(\s+(\S+)\s+(\S+))?/, (msg, match) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /settings but is not authorized`);
+    return;
+  }
   const chatId = msg.chat.id;
   if (!match || !match[2] || !match[3]) {
-    let s = `📊 Model Settings:\n\n`;
-    s += `1️⃣ Safety Settings (Gemini):\n`;
-    s += `• harassment: ${geminiSettings.safety.harassment ? 'ON' : 'OFF'}\n`;
-    s += `• hate: ${geminiSettings.safety.hate ? 'ON' : 'OFF'}\n`;
-    s += `• sexuallyExplicit: ${geminiSettings.safety.sexuallyExplicit ? 'ON' : 'OFF'}\n`;
-    s += `• dangerousContent: ${geminiSettings.safety.dangerousContent ? 'ON' : 'OFF'}\n\n`;
-    s += `2️⃣ Generation Config (Gemini):\n`;
-    s += `• temperature: ${geminiSettings.generationConfig.temperature}\n`;
-    s += `• topP: ${geminiSettings.generationConfig.topP}\n`;
-    s += `• topK: ${geminiSettings.generationConfig.topK}\n`;
-    s += `• maxOutputTokens: ${geminiSettings.generationConfig.maxOutputTokens}\n\n`;
-    s += `Usage instructions:\n`;
-    s += `• For Safety: /settings safety.[field] on/off\n`;
-    s += `  Example: /settings safety.harassment on\n\n`;
-    s += `• For Config: /settings config.[field] [value]\n`;
-    s += `  Example: /settings config.temperature 0.7\n`;
+    let s = `Model Settings:\n\n` +
+      `Safety (Gemini):\n` +
+      `• harassment: ${geminiSettings.safety.harassment ? 'ON' : 'OFF'}\n` +
+      `• hate: ${geminiSettings.safety.hate ? 'ON' : 'OFF'}\n` +
+      `• sexuallyExplicit: ${geminiSettings.safety.sexuallyExplicit ? 'ON' : 'OFF'}\n` +
+      `• dangerousContent: ${geminiSettings.safety.dangerousContent ? 'ON' : 'OFF'}\n\n` +
+      `Config (Gemini):\n` +
+      `• temperature: ${geminiSettings.generationConfig.temperature}\n` +
+      `• topP: ${geminiSettings.generationConfig.topP}\n` +
+      `• topK: ${geminiSettings.generationConfig.topK}\n` +
+      `• maxOutputTokens: ${geminiSettings.generationConfig.maxOutputTokens}\n\n` +
+      `Example:\n/settings safety.harassment on\n/settings config.temperature 0.7`;
     tgBot.sendMessage(chatId, s);
     return;
   }
@@ -388,107 +436,102 @@ tgBot.onText(/\/settings(\s+(\S+)\s+(\S+))?/, (msg, match) => {
     const field = settingPath.split('.')[1];
     if (geminiSettings.safety.hasOwnProperty(field)) {
       geminiSettings.safety[field] = (value === 'on');
-      tgBot.sendMessage(chatId, `✅ Safety setting ${field} changed to ${value.toUpperCase()}.`);
-    } else {
-      tgBot.sendMessage(chatId, `⚠️ Setting '${field}' not recognized.`);
-    }
+      tgBot.sendMessage(chatId, `Safety setting ${field} changed to ${value.toUpperCase()}.`);
+    } else tgBot.sendMessage(chatId, `Setting '${field}' not recognized.`);
   } else if (settingPath.startsWith('config.')) {
     const field = settingPath.split('.')[1];
     if (geminiSettings.generationConfig.hasOwnProperty(field)) {
       const numValue = parseFloat(value);
       if (!isNaN(numValue)) {
         geminiSettings.generationConfig[field] = numValue;
-        tgBot.sendMessage(chatId, `✅ Generation config ${field} changed to ${numValue}.`);
-      } else {
-        tgBot.sendMessage(chatId, `⚠️ The value for ${field} must be a number.`);
-      }
-    } else {
-      tgBot.sendMessage(chatId, `⚠️ Setting '${field}' not recognized.`);
-    }
+        tgBot.sendMessage(chatId, `Generation config ${field} changed to ${numValue}.`);
+      } else tgBot.sendMessage(chatId, `The value for ${field} must be a number.`);
+    } else tgBot.sendMessage(chatId, `Setting '${field}' not recognized.`);
   } else {
-    tgBot.sendMessage(chatId, `⚠️ Invalid settings format. Use /settings to see the correct format.`);
+    tgBot.sendMessage(chatId, `Invalid settings format.`);
   }
 });
 
 tgBot.onText(/\/history/, (msg) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /history but is not authorized`);
+    return;
+  }
   const chatId = msg.chat.id;
-  const userNumber = msg.from?.id?.toString() || '';
-  const conversationFilePath = path.join(conversationsDir, `conversation_${userNumber}.json`);
-  try {
-    let conversation;
-    if (fs.existsSync(conversationFilePath)) {
+  const conversationFilePath = path.join(conversationsDir, `conversation_${msg.from.id}.json`);
+  let conversation;
+  if (fs.existsSync(conversationFilePath)) {
+    try {
       conversation = JSON.parse(fs.readFileSync(conversationFilePath, 'utf8'));
-    } else {
+    } catch (error) {
+      logError('telegram-history', error);
       conversation = [];
     }
-    const lastEntries = conversation.slice(-10);
-    if (lastEntries.length === 0) {
-      tgBot.sendMessage(chatId, "No chat history recorded yet.");
-    } else {
-      let result = "Recent chat history:\n\n";
-      lastEntries.forEach((line, idx) => {
-        if (line.role !== 'system') {
-          result += `${idx+1}. [${line.role}] ${line.content.substring(0, 100)}${line.content.length > 100 ? '...' : ''}\n\n`;
-        }
-      });
-      tgBot.sendMessage(chatId, result);
-    }
-  } catch (error) {
-    logError('history', error);
-    tgBot.sendMessage(chatId, "An error occurred while retrieving chat history.");
+  } else conversation = [];
+  const lastEntries = conversation.slice(-10);
+  if (lastEntries.length === 0)
+    tgBot.sendMessage(chatId, "No conversation history.");
+  else {
+    let result = "Last conversation history:\n\n";
+    lastEntries.forEach((line, idx) => {
+      if (line.role !== 'system') {
+        result += `${idx+1}. [${line.role}] ${line.content.substring(0, 100)}${line.content.length > 100 ? '...' : ''}\n\n`;
+      }
+    });
+    tgBot.sendMessage(chatId, result);
   }
 });
 
-tgBot.onText(/\/start_chatbot/, (msg) => {
-  chatbotEnabled = true;
-  tgBot.sendMessage(msg.chat.id, "Chatbot activated.");
-});
-tgBot.onText(/\/stop_chatbot/, (msg) => {
-  chatbotEnabled = false;
-  tgBot.sendMessage(msg.chat.id, "Chatbot deactivated.");
+tgBot.onText(/\/start_chatbot/, (msg) => { 
+  if (isTelegramAuthorized(msg)) { 
+    chatbotEnabled = true; 
+    tgBot.sendMessage(msg.chat.id, "Chatbot activated."); 
+  } else {
+    console.log(`User ${msg.from?.id} attempted to use /start_chatbot but is not authorized`);
+  }
 });
 
-tgBot.onText(/\/help/, (msg) => {
-  const helpMessage = `📌 List of Commands:
-
-/start - Start the bot and initial authentication (if not already authenticated).
-/start_chatbot - Activate the chatbot.
-/stop_chatbot - Deactivate the chatbot.
-/add [number] - Add a new user (with password verification).
-/remove [number] - Remove a user (with password verification; admin users cannot be removed via the bot).
-/show_model - Display the list of models and each startup's unique model IDs.
-/settings - Display all available settings.
-/settings safety.[field] on/off - Change Gemini Safety Settings.
-/settings config.[field] [value] - Change Gemini Generation Config.
-/history - Display recent chat history.
-/version - Display the bot version.
-/list - Display the list of authorized users.
-/logs - Display logs (placeholder).
-/status - Display chatbot and provider status.
-`;
-  tgBot.sendMessage(msg.chat.id, helpMessage);
+tgBot.onText(/\/stop_chatbot/, (msg) => { 
+  if (isTelegramAuthorized(msg)) { 
+    chatbotEnabled = false; 
+    tgBot.sendMessage(msg.chat.id, "Chatbot deactivated."); 
+  } else {
+    console.log(`User ${msg.from?.id} attempted to use /stop_chatbot but is not authorized`);
+  }
 });
 
 tgBot.onText(/\/list/, (msg) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /list but is not authorized`);
+    return;
+  }
   const adminList = authorizedUsers.admin.join('\n');
   const userList = authorizedUsers.users.join('\n');
-  const response = `📋 Authorized Users List:\n\nAdmin:\n${adminList}\n\nUser:\n${userList}`;
-  tgBot.sendMessage(msg.chat.id, response);
+  tgBot.sendMessage(msg.chat.id, `Authorized Users List:\n\nAdmin:\n${adminList}\n\nUser:\n${userList}`);
 });
 
-tgBot.onText(/\/logs/, (msg) => {
-  tgBot.sendMessage(msg.chat.id, "ℹ️ Logs feature has not been fully implemented yet.");
+tgBot.onText(/\/logs/, (msg) => { 
+  if (isTelegramAuthorized(msg)) {
+    tgBot.sendMessage(msg.chat.id, "Logs feature not implemented."); 
+  } else {
+    console.log(`User ${msg.from?.id} attempted to use /logs but is not authorized`);
+  }
 });
+
 tgBot.onText(/\/status/, (msg) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /status but is not authorized`);
+    return;
+  }
   const providerStatus = API_PROVIDERS.map(provider => `${provider.name}: ${provider.available ? 'Available' : 'Unavailable'}`).join('\n');
   const currentProvider = API_PROVIDERS[currentProviderIndex];
   const currentModel = currentProvider.models[currentProvider.currentModelIndex].name;
   const currentVisionModel = currentProvider.visionModels[currentProvider.currentVisionModelIndex].name;
-  const response = `🤖 Chatbot Status:
+  const response = `Chatbot Status:
 Chatbot active: ${chatbotEnabled ? 'Yes' : 'No'}
-Current provider: ${currentProvider.name}
-Current text model: ${currentModel}
-Current vision model: ${currentVisionModel}
+Provider: ${currentProvider.name}
+Model: ${currentModel}
+Vision Model: ${currentVisionModel}
 
 Provider Status:
 ${providerStatus}`;
@@ -497,68 +540,292 @@ ${providerStatus}`;
 
 const pendingAddRequests = new Map();
 tgBot.onText(/\/add\s+(\+?\d+)/, (msg, match) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /add but is not authorized`);
+    return;
+  }
   const chatId = msg.chat.id;
   const newUser = `${match[1].replace(/\D/g, '')}@c.us`;
-  pendingAddRequests.set(chatId, { newUser, attempt: 0, timestamp: Date.now() });
-  tgBot.sendMessage(chatId, "Please enter the admin password to add a user:");
+  pendingAddRequests.set(chatId, { newUser, attempt: 0 });
+  tgBot.sendMessage(chatId, "Enter admin password to add a user:");
 });
 
 const pendingRemoveRequests = new Map();
 tgBot.onText(/\/remove\s+(\+?\d+)/, (msg, match) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /remove but is not authorized`);
+    return;
+  }
   const chatId = msg.chat.id;
   const targetUser = `${match[1].replace(/\D/g, '')}@c.us`;
-  pendingRemoveRequests.set(chatId, { targetUser, attempt: 0, timestamp: Date.now() });
-  tgBot.sendMessage(chatId, "Please enter the admin password to remove a user:");
+  pendingRemoveRequests.set(chatId, { targetUser, attempt: 0 });
+  tgBot.sendMessage(chatId, "Enter admin password to remove a user:");
 });
 
-tgBot.on('message', (msg) => {
+tgBot.on('message', async (msg) => {
+  // Log all incoming Telegram messages for debugging
+  console.log(`Received message from Telegram: ${msg.from?.id} (${msg.from?.username || 'no username'}): ${msg.text || '[no text]'}`);
+  
+  if (!msg.text || msg.text.startsWith('/') || pendingAddRequests.has(msg.chat.id) || pendingRemoveRequests.has(msg.chat.id)) return;
+  
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} sent a message but is not authorized`);
+    return;
+  }
+  
   const chatId = msg.chat.id;
-  if (!msg.text || msg.text.startsWith('/')) return;
-  if (pendingAddRequests.has(chatId)) {
-    const pending = pendingAddRequests.get(chatId);
-    if (msg.text.trim() === ADMIN_PASSWORD) {
-      if (!authorizedUsers.users.includes(pending.newUser)) {
-        authorizedUsers.users.push(pending.newUser);
-        saveAuthorizedUsers();
-        tgBot.sendMessage(chatId, `✅ User ${pending.newUser} has been successfully added.`);
-      } else {
-        tgBot.sendMessage(chatId, `⚠️ User ${pending.newUser} is already registered.`);
-      }
-      pendingAddRequests.delete(chatId);
+  const userId = msg.from.id.toString();
+  const conversationFilePath = path.join(conversationsDir, `conversation_${userId}.json`);
+  
+  let conversation;
+  if (fs.existsSync(conversationFilePath)) {
+    try {
+      conversation = JSON.parse(fs.readFileSync(conversationFilePath, 'utf8'));
+    } catch (error) {
+      logError('telegram-message-history', error);
+      conversation = [{ role: 'system', content: SYSTEM_PROMPT }];
+    }
+  } else {
+    conversation = [{ role: 'system', content: SYSTEM_PROMPT }];
+  }
+  
+  try {
+    if (msg.photo && msg.photo.length > 0) {
+      const photo = msg.photo[msg.photo.length - 1];
+      const fileId = photo.file_id;
+      const processingMsg = await tgBot.sendMessage(chatId, "Processing image...");
+      const fileInfo = await tgBot.getFile(fileId);
+      const fileUrl = `https://api.telegram.org/file/bot${telegramToken}/${fileInfo.file_path}`;
+      const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+      const imageBuffer = Buffer.from(response.data, 'binary');
+      const base64Image = imageBuffer.toString('base64');
+      const caption = msg.caption || 'Analyze this image';
+      conversation.push({ role: 'user', content: caption });
+      const aiResp = await askAI(caption, true, base64Image, null);
+      conversation.push({ role: 'assistant', content: aiResp });
+      fs.writeFileSync(conversationFilePath, JSON.stringify(conversation, null, 2));
+      tgBot.editMessageText(aiResp, { chat_id: chatId, message_id: processingMsg.message_id })
+        .catch(e => {
+          tgBot.deleteMessage(chatId, processingMsg.message_id).catch(() => {});
+          tgBot.sendMessage(chatId, aiResp);
+        });
+      
     } else {
-      pending.attempt++;
-      if (pending.attempt >= 5) {
-        tgBot.sendMessage(chatId, "🚫 Incorrect password 5 times. /add action canceled.");
-        pendingAddRequests.delete(chatId);
-      } else {
-        tgBot.sendMessage(chatId, `Incorrect password! Attempt ${pending.attempt}. Please enter the correct password:`);
+      tgBot.sendChatAction(chatId, "typing");
+      conversation.push({ role: 'user', content: msg.text });
+      const aiResp = await askAI(msg.text, false, null, conversation);
+      conversation.push({ role: 'assistant', content: aiResp });
+      fs.writeFileSync(conversationFilePath, JSON.stringify(conversation, null, 2));
+      tgBot.sendMessage(chatId, aiResp);
+    }
+  } catch (error) {
+    logError('telegram-message', error);
+    tgBot.sendMessage(chatId, "Sorry, an error occurred while processing your message.");
+  }
+});
+
+tgBot.onText(/\/use_provider\s+(\d+)/, (msg, match) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /use_provider but is not authorized`);
+    return;
+  }
+  
+  const index = parseInt(match[1]);
+  if (isNaN(index) || index < 0 || index >= API_PROVIDERS.length) {
+    tgBot.sendMessage(msg.chat.id, `Invalid index. Please use 0-${API_PROVIDERS.length - 1}`);
+    return;
+  }
+  
+  currentProviderIndex = index;
+  tgBot.sendMessage(msg.chat.id, `Provider changed to ${API_PROVIDERS[currentProviderIndex].name}`);
+});
+
+tgBot.onText(/\/use_model\s+(\d+)/, (msg, match) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /use_model but is not authorized`);
+    return;
+  }
+  
+  const provider = API_PROVIDERS[currentProviderIndex];
+  const index = parseInt(match[1]);
+  
+  if (isNaN(index) || index < 0 || index >= provider.models.length) {
+    tgBot.sendMessage(msg.chat.id, `Invalid index. Please use 0-${provider.models.length - 1}`);
+    return;
+  }
+  
+  provider.currentModelIndex = index;
+  tgBot.sendMessage(msg.chat.id, `Model for ${provider.name} changed to ${provider.models[index].name}`);
+});
+
+tgBot.onText(/\/use_vision_model\s+(\d+)/, (msg, match) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /use_vision_model but is not authorized`);
+    return;
+  }
+  
+  const provider = API_PROVIDERS[currentProviderIndex];
+  const index = parseInt(match[1]);
+  
+  if (!provider.visionModels || provider.visionModels.length === 0) {
+    tgBot.sendMessage(msg.chat.id, `Provider ${provider.name} does not have a vision model`);
+    return;
+  }
+  
+  if (isNaN(index) || index < 0 || index >= provider.visionModels.length) {
+    tgBot.sendMessage(msg.chat.id, `Invalid index. Please use 0-${provider.visionModels.length - 1}`);
+    return;
+  }
+  
+  provider.currentVisionModelIndex = index;
+  tgBot.sendMessage(msg.chat.id, `Vision model for ${provider.name} changed to ${provider.visionModels[index].name}`);
+});
+
+tgBot.onText(/\/ocr/, async (msg) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /ocr but is not authorized`);
+    return;
+  }
+  
+  if (!msg.reply_to_message || !msg.reply_to_message.photo) {
+    tgBot.sendMessage(msg.chat.id, "Please reply to a photo message with /ocr to extract text.");
+    return;
+  }
+  
+  try {
+    const photo = msg.reply_to_message.photo[msg.reply_to_message.photo.length - 1];
+    const fileId = photo.file_id;
+    const processingMsg = await tgBot.sendMessage(msg.chat.id, "Extracting text from image...");
+    const fileInfo = await tgBot.getFile(fileId);
+    const fileUrl = `https://api.telegram.org/file/bot${telegramToken}/${fileInfo.file_path}`;
+    const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
+    const imageBuffer = Buffer.from(response.data, 'binary');
+    const base64Image = imageBuffer.toString('base64');
+    const ocrResult = await askAI(OCR_PROMPT, true, base64Image, null);
+    tgBot.editMessageText(`📄 Extracted Text:\n\n${ocrResult}`, { chat_id: msg.chat.id, message_id: processingMsg.message_id })
+      .catch(e => {
+        tgBot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
+        tgBot.sendMessage(msg.chat.id, `📄 Extracted Text:\n\n${ocrResult}`);
+      });
+  } catch (error) {
+    logError('telegram-ocr', error);
+    tgBot.sendMessage(msg.chat.id, "Sorry, an error occurred while extracting text from the image.");
+  }
+});
+
+async function askAIWithFallback(prompt, isVision = false, imageContent = null, conversation = null) {
+  const originalProviderIndex = currentProviderIndex;
+  let attempts = 0;
+  let error = null;
+  
+  while (attempts < API_PROVIDERS.length * 2) {
+    try {
+      const result = await askAI(prompt, isVision, imageContent, conversation);
+      if (result && !result.includes("Sorry, an error occurred") && !result.includes("API key not available")) {
+        return result;
+      }
+      currentProviderIndex = (currentProviderIndex + 1) % API_PROVIDERS.length;
+    } catch (err) {
+      error = err;
+      currentProviderIndex = (currentProviderIndex + 1) % API_PROVIDERS.length;
+    }
+    attempts++;
+  }
+  
+  currentProviderIndex = originalProviderIndex;
+  return "All AI providers are currently unavailable. Please try again later.";
+}
+
+tgBot.onText(/\/clear_history/, (msg) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /clear_history but is not authorized`);
+    return;
+  }
+  
+  const userId = msg.from.id.toString();
+  const conversationFilePath = path.join(conversationsDir, `conversation_${userId}.json`);
+  
+  try {
+    const newConversation = [{ role: 'system', content: SYSTEM_PROMPT }];
+    fs.writeFileSync(conversationFilePath, JSON.stringify(newConversation, null, 2));
+    tgBot.sendMessage(msg.chat.id, "Conversation history has been cleared.");
+  } catch (error) {
+    logError('clear-history', error);
+    tgBot.sendMessage(msg.chat.id, "Failed to clear conversation history.");
+  }
+});
+
+client.on('message', async (msg) => {
+  if (msg.body === '/clear' || msg.body === '/clear_history') {
+    const sender = msg.from;
+    if (isAuthorized(sender)) {
+      try {
+        const newConversation = [{ role: 'system', content: SYSTEM_PROMPT }];
+        saveConversation(sender, newConversation);
+        msg.reply("Conversation history has been cleared.");
+      } catch (error) {
+        logError('whatsapp-clear-history', error);
+        msg.reply("Failed to clear conversation history.");
       }
     }
   }
-  if (pendingRemoveRequests.has(chatId)) {
-    const pending = pendingRemoveRequests.get(chatId);
-    if (msg.text.trim() === ADMIN_PASSWORD) {
-      if (authorizedUsers.admin.includes(pending.targetUser)) {
-        tgBot.sendMessage(chatId, "⚠️ Cannot remove an admin user via this command.");
-      } else {
-        const index = authorizedUsers.users.indexOf(pending.targetUser);
-        if (index !== -1) {
-          authorizedUsers.users.splice(index, 1);
-          saveAuthorizedUsers();
-          tgBot.sendMessage(chatId, `✅ User ${pending.targetUser} has been successfully removed.`);
-        } else {
-          tgBot.sendMessage(chatId, `⚠️ User ${pending.targetUser} not found.`);
-        }
-      }
-      pendingRemoveRequests.delete(chatId);
-    } else {
-      pending.attempt++;
-      if (pending.attempt >= 5) {
-        tgBot.sendMessage(chatId, "🚫 Incorrect password 5 times. /remove action canceled.");
-        pendingRemoveRequests.delete(chatId);
-      } else {
-        tgBot.sendMessage(chatId, `Incorrect password! Attempt ${pending.attempt}. Please enter the correct password:`);
-      }
-    }
+});
+
+process.on('SIGINT', () => {
+  console.log('Shutting down...');
+  client.destroy().then(() => {
+    console.log('WhatsApp client destroyed.');
+    process.exit(0);
+  }).catch(err => {
+    console.error('Error shutting down WhatsApp client:', err);
+    process.exit(1);
+  });
+});
+
+tgBot.onText(/\/help/, (msg) => {
+  if (!isTelegramAuthorized(msg)) {
+    console.log(`User ${msg.from?.id} attempted to use /help but is not authorized`);
+    return;
   }
+  
+  const helpText = `
+*ROZEN AI Bot - Available Commands*
+
+*General Commands:*
+/show or /version - Display bot version
+/status - Display bot and provider status
+/help - Display this help message
+
+*Conversation Management:*
+/history - View conversation history
+/clear_history - Clear conversation history
+
+*Model Settings:*
+/show_model - Display list of available models
+/use_provider [index] - Change the AI provider
+/use_model [index] - Change the AI model
+/use_vision_model [index] - Change the AI vision model
+
+*Security Settings:*
+/settings - Show model and safety settings
+/settings safety.[param] on/off - Change safety settings
+/settings config.[param] [value] - Change generation settings
+
+*User Management:*
+/list - List authorized users
+/add [number] - Add a new user
+/remove [number] - Remove a user
+
+*Functionality:*
+/ocr - Extract text from an image (reply to a photo with this command)
+/myid - Display your Telegram ID information
+
+*Admin:*
+/start_chatbot - Activate the bot
+/stop_chatbot - Deactivate the bot
+
+_To send a message to the AI, simply type a regular message or send a photo._
+`;
+
+  tgBot.sendMessage(msg.chat.id, helpText, { parse_mode: 'Markdown' });
 });
