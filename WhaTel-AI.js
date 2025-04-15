@@ -43,8 +43,8 @@ let chatbotEnabled = true;
 
 // File-based authorized users (with default data)
 let authorizedUsers = {
-  admin: ['6282183206692@c.us'],
-  users: ['6288286723815@c.us']
+  admin: ['6281234567890@c.us'],
+  users: ['6285678935679@c.us']
 };
 function loadAuthorizedUsers() {
   try {
