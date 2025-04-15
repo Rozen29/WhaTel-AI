@@ -166,6 +166,7 @@ This project uses `lowdb` to persist data in the `db.json` file. This file conta
 ### 📁 File Structure
 
 WhaTel-AI/
+
 ├── node.js # Main bot application code
 ├── db.js # Helper module for lowdb database interactions
 ├── db.json # Database file (auto-created by lowdb)
@@ -176,7 +177,6 @@ WhaTel-AI/
 ├── greeted_users.json # List of greeted WA users (auto-created)
 ├── folder-foto/ # Image storage directory (auto-created)
 └── .wwebjs_auth/ # WhatsApp session folder (auto-created)
-
 
 ### 🐛 Troubleshooting
 
@@ -371,6 +371,7 @@ Proyek ini menggunakan `lowdb` untuk menyimpan data secara persisten dalam file 
 ### 📁 Struktur File
 
 WhaTel-AI/
+
 ├── node.js # Kode utama aplikasi bot
 ├── db.js # Modul helper untuk interaksi database lowdb
 ├── db.json # File database (dibuat otomatis oleh lowdb)
@@ -381,7 +382,6 @@ WhaTel-AI/
 ├── greeted_users.json # Daftar user WA yang sudah disapa (dibuat otomatis)
 ├── folder-foto/ # Direktori penyimpanan gambar (dibuat otomatis)
 └── .wwebjs_auth/ # Folder sesi WhatsApp (dibuat otomatis)
-
 
 ### 🐛 Pemecahan Masalah
 
