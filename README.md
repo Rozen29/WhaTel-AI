@@ -1,137 +1,209 @@
-# WhaTel-AI
+# WhaTel-AI 🤖
 
-> **NOTE:** This project was fully developed by AI with approximately 1 month of work.
-> If this project has many shortcomings and bugs or errors, please report them and they will be fixed immediately.
+**Seamless WhatsApp & Telegram AI Assistant powered by Groq & Gemini**
 
-## WhatsApp-Telegram AI Integration Bot
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<!-- Tambahkan badge lain jika relevan (misalnya build status) -->
 
-This project integrates WhatsApp and Telegram messaging platforms with AI services (Groq and Gemini) to create a versatile AI assistant. The bot can handle text conversations and image analysis across both platforms, with centralized administration via Telegram.
+WhaTel-AI adalah bot serbaguna yang mengintegrasikan WhatsApp dan Telegram dengan layanan AI canggih (Groq Llama & Google Gemini). Bot ini memungkinkan pengguna berinteraksi dengan AI melalui platform chat pilihan mereka, sementara admin dapat mengelola pengguna dan pengaturan bot secara terpusat via Telegram.
 
-## Features
+> **Catatan Pengembang:** Proyek ini sebagian besar dikembangkan melalui interaksi dengan AI. Kami menyambut baik laporan bug dan saran fitur melalui [GitHub Issues](https://github.com/Rozen29/WhaTel-AI/issues).
 
-- **Dual Platform Support**: Works on both WhatsApp and Telegram
-- **AI Integration**: Connects with Groq and Gemini API services
-- **Image Analysis**: Processes and analyzes images through vision AI models
-- **User Management**: Admin controls for adding/removing authorized users
-- **Conversation History**: Maintains chat history for context-aware responses
-- **Customizable Settings**: Adjustable AI parameters (temperature, safety settings, etc.)
-- **Secure Authentication**: Password protection for admin functions
+## ✨ Fitur Utama
 
-## Requirements
+*   **Dukungan Multi-Platform:** Berinteraksi dengan AI via WhatsApp dan Telegram.
+*   **Integrasi Multi-AI:** Terhubung ke API Groq (Llama 3) dan Google Gemini (Pro/Flash).
+*   **Kemampuan Vision:** Menganalisis gambar yang dikirim (deskripsi & OCR) menggunakan model vision AI.
+*   **Manajemen Pengguna WA:** Kontrol admin via Telegram untuk menambah/menghapus pengguna WhatsApp yang diotorisasi.
+*   **Riwayat Percakapan:** Menyimpan riwayat chat per pengguna per platform dalam database `lowdb` untuk respons yang kontekstual.
+*   **Pengaturan Fleksibel:** Admin dapat menyesuaikan parameter AI (suhu, keamanan, model) via Telegram.
+*   **Administrasi Terpusat:** Semua kontrol bot (koneksi WA, pengguna, pengaturan) dilakukan melalui perintah Telegram yang aman.
+*   **Penyimpanan Lokal:** Menggunakan `lowdb` untuk menyimpan data pengguna dan percakapan dalam file `db.json`.
 
-- Node.js (v18+)
-- NPM or Yarn
-- WhatsApp account
-- Telegram account
-- API keys for Groq and Gemini
+## 🛠️ Tumpukan Teknologi
 
-## Dependencies
+*   Node.js
+*   whatsapp-web.js
+*   node-telegram-bot-api
+*   axios
+*   lowdb
+*   qrcode / qrcode-terminal
+*   dotenv
+*   Groq API
+*   Google Gemini API
 
-- whatsapp-web.js
-- node-telegram-bot-api
-- axios
-- qrcode-terminal
-- dotenv
-- fs (built-in)
-- path (built-in)
+## ✅ Prasyarat
 
-## Installation
+*   **Node.js:** Versi 18.0.0 atau lebih tinggi (karena menggunakan ES Modules).
+*   **npm:** Biasanya terinstal bersama Node.js.
+*   **Akun WhatsApp:** Akun aktif yang akan digunakan oleh bot.
+*   **Akun Telegram:** Akun yang akan digunakan untuk mengelola bot.
+*   **Bot Telegram:** Buat bot baru via @BotFather di Telegram untuk mendapatkan token.
+*   **API Keys:**
+    *   Groq API Key (Opsional, jika ingin menggunakan Groq)
+    *   Google AI Gemini API Key (Opsional, jika ingin menggunakan Gemini)
 
-1. Clone the repository:
-   ```
-   https://github.com/Rozen29/WhaTel-AI.git
-   cd WhaTel-AI
-   ```
+## 🚀 Instalasi & Setup
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+1.  **Clone Repositori:**
+    ```bash
+    git clone https://github.com/Rozen29/WhaTel-AI.git
+    cd WhaTel-AI
+    ```
 
-3. Create a `.env` file in the root directory with the following variables:
-   ```
-   TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-   GROQ_API_KEY=your_groq_api_key
-   GEMINI_API_KEY=your_gemini_api_key
-   ADMIN_PASSWORD=your_admin_password
-   MODEL_CHANGE_PASSWORD=your_model_change_password
-   ```
+2.  **Install Dependensi:**
+    ```bash
+    npm install
+    ```
 
-## Usage
+3.  **Buat File `.env`:**
+    Buat file bernama `.env` di direktori utama proyek dan isi dengan variabel berikut. **Jangan pernah** membagikan file ini atau memasukkannya ke Git.
 
-1. Start the bot:
-   ```
-   npm start
-   ```
+    ```dotenv
+    # --- Telegram Settings ---
+    TELEGRAM_BOT_TOKEN=ISI_DENGAN_TOKEN_BOT_TELEGRAM_ANDA
+    # Daftar ID User Telegram Admin (pisahkan dengan koma, TANPA spasi) - WAJIB ADA MINIMAL 1
+    TELEGRAM_ADMIN_LIST=ID_TELEGRAM_ADMIN_1,ID_TELEGRAM_ADMIN_2
+    # ID Chat Telegram untuk menerima notifikasi error (opsional)
+    TELEGRAM_ERROR_CHAT_ID=ISI_JIKA_PERLU
 
-2. Scan the QR code with WhatsApp to authenticate.
+    # --- WhatsApp Admin ---
+    # Password untuk perintah /add dan /remove user WA via Telegram
+    ADMIN_PASSWORD=BUAT_PASSWORD_YANG_KUAT
 
-3. The bot will now respond to messages from authorized users on WhatsApp.
+    # --- AI Provider API Keys (Isi salah satu atau keduanya) ---
+    GROQ_API_KEY=ISI_DENGAN_GROQ_API_KEY_ANDA (opsional)
+    GEMINI_API_KEY=ISI_DENGAN_GEMINI_API_KEY_ANDA (opsional)
 
-4. Use Telegram to administer the bot with the following commands:
+    # --- (Variabel lain jika ada) ---
+    # Contoh: Jika Anda menambahkan konfigurasi lain
+    # INITIAL_ADMIN_NUMBER=6281234567890 (Contoh, tidak digunakan di kode saat ini)
+    ```
 
-### Telegram Commands
+    *   **Cara Mendapatkan ID Telegram:** Kirim pesan `/myid` ke @userinfobot atau bot serupa.
+    *   **Cara Mendapatkan API Keys:** Kunjungi situs resmi Groq dan Google AI Studio / Google Cloud.
 
-- `/start` - Start bot and initial authentication
-- `/start_chatbot` - Enable the chatbot
-- `/stop_chatbot` - Disable the chatbot
-- `/add [phone_number]` - Add a new authorized user (requires admin password)
-- `/remove [phone_number]` - Remove an authorized user (requires admin password)
-- `/show_model` - Display available AI models
-- `/settings` - Show all available settings
-- `/settings safety.[field] [on/off]` - Modify Gemini safety settings
-- `/settings config.[field] [value]` - Modify Gemini generation configuration
-- `/history` - Show recent conversation history
-- `/version` - Display bot version
-- `/list` - Show authorized users
-- `/status` - Show chatbot and provider status
-- `/help` - Display all available commands
+4.  **Tambahkan `.env` ke `.gitignore`:**
+    Pastikan file `.gitignore` Anda (buat jika belum ada) berisi baris berikut untuk mencegah kebocoran kredensial:
+    ```gitignore
+    node_modules/
+    .env
+    db.json # Jangan commit database berisi percakapan
+    folder-foto/ # Jangan commit foto yang diupload
+    *.log
+    .wwebjs_auth/ # Folder sesi WhatsApp
+    ```
 
-## File Structure
+## ▶️ Menjalankan Bot
 
-```
-whatel-ai/
-├── index.js              # Main application file
-├── .env                  # Environment variables (create this)
-├── package.json          # Project dependencies
-├── README.md             # Project documentation
-├── folder-foto/          # Image storage directory (auto-created)
-├── conversations/        # Conversation history storage (auto-created)
-├── greeted_users.json    # Record of greeted users (auto-created)
-└── authorized_users.json # List of authorized users (auto-created)
-```
+1.  **Start Bot:**
+    ```bash
+    npm start
+    ```
 
-## Security Considerations
+2.  **Scan QR Code WhatsApp (Pertama Kali):**
+    Saat pertama kali dijalankan, sebuah QR code akan muncul di terminal (dan dikirim ke admin Telegram pertama jika bot sudah bisa mengirim pesan). Scan QR code ini menggunakan aplikasi WhatsApp di ponsel Anda (Linked Devices -> Link a device).
 
-- Keep your `.env` file secure and never commit it to version control
-- Change default admin passwords
-- Regularly review authorized users list
-- Be mindful of data storage (conversations, images)
+3.  **Bot Siap:** Setelah terhubung, bot akan siap menerima perintah dari admin di Telegram dan merespons pengguna WhatsApp yang terotorisasi.
 
-## Customization
+## 💬 Penggunaan
 
-- Edit the `SYSTEM_PROMPT` and `VISION_PROMPT` variables to change AI behavior
-- Modify temperature and other generation parameters via Telegram commands
-- Adjust safety settings to control AI response filtering
+Bot memiliki dua mode interaksi utama:
 
-## Troubleshooting
+1.  **Pengguna WhatsApp:** Pengguna yang nomornya telah ditambahkan oleh admin via Telegram dapat mengirim pesan teks atau gambar ke nomor WhatsApp bot dan akan menerima respons dari AI.
+2.  **Admin Telegram:** Admin yang ID Telegram-nya ada di `TELEGRAM_ADMIN_LIST` dapat mengontrol semua aspek bot menggunakan perintah di chat Telegram pribadi dengan bot.
 
-- If WhatsApp authentication fails, delete the `.wwebjs_auth` directory and restart
-- Check internet connectivity if API requests fail
-- Verify API keys if AI services return authorization errors
-- Ensure proper phone number format when adding users (include country code)
+### 📜 Perintah Admin Telegram
 
-> **NOTE:** This project has some features that are not working yet such as:
-> /logs for logs, errors and others are not implemented yet. 
-> /history is not working properly. 
-so if you have any criticism or suggestions you can let me know.
+| Perintah                  | Deskripsi                                                               |
+| :------------------------ | :---------------------------------------------------------------------- |
+| `/connect`                | Menghubungkan/memulai koneksi ke WhatsApp & menampilkan QR Code.        |
+| `/disconnect`             | Memutuskan koneksi dari WhatsApp.                                       |
+| `/status`                 | Menampilkan status koneksi WhatsApp, status bot & provider AI.          |
+| `/start_chatbot`          | Mengaktifkan respons AI untuk pengguna WhatsApp.                        |
+| `/stop_chatbot`           | Menonaktifkan respons AI untuk pengguna WhatsApp.                       |
+| `/add [nomor_wa]`         | Menambah nomor WhatsApp ke daftar pengguna (mis: `/add 6281...`). Meminta password admin. |
+| `/remove [nomor_wa]`      | Menghapus nomor WhatsApp dari daftar pengguna. Meminta password admin.    |
+| `/list`                   | Menampilkan daftar admin dan pengguna WhatsApp yang terotorisasi.       |
+| `/show_model`             | Menampilkan daftar provider AI dan model yang tersedia & terpilih.    |
+| `/use_provider [index]`   | Mengganti provider AI aktif (lihat indeks dari `/show_model`).           |
+| `/use_model [index]`      | Mengganti model teks AI aktif (untuk provider saat ini).                  |
+| `/use_vision_model [index]`| Mengganti model vision AI aktif (untuk provider saat ini).                |
+| `/settings`               | Menampilkan/mengubah pengaturan AI (safety & config, saat ini Gemini). |
+| `/settings [path] [val]`| Mengubah pengaturan spesifik (e.g., `/settings safety.hate block`).     |
+| `/history`                | Menampilkan riwayat percakapan terakhir Anda di Telegram dengan bot.   |
+| `/clear_history`          | Menghapus riwayat percakapan Anda di Telegram dengan bot.               |
+| `/ocr`                    | (Balas ke gambar) Ekstrak teks dari gambar yang dibalas.               |
+| `/myid`                   | Menampilkan informasi ID Telegram Anda.                                 |
+| `/help`                   | Menampilkan pesan bantuan ini.                                          |
+| `/logs`                   | (Dasar) Menunjukkan info log dasar (cek console untuk detail).         |
+| `/version` atau `/show`   | Menampilkan versi bot saat ini.                                         |
+| `/cancel`                 | Membatalkan proses `/add` atau `/remove` saat diminta password.         |
 
-## License
+## ⚙️ Konfigurasi
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+*   **Variabel Utama:** Konfigurasi utama (token, API keys, admin) dilakukan melalui file `.env`.
+*   **Prompt AI:** Anda dapat mengubah perilaku dasar AI dengan mengedit konstanta `SYSTEM_PROMPT`, `VISION_PROMPT`, dan `OCR_PROMPT` di dalam file `node.js`.
+*   **Parameter AI:** Pengaturan seperti *temperature* (untuk Groq, di `node.js`) dan *safety/generation settings* (untuk Gemini, via `/settings` di Telegram) dapat disesuaikan.
 
-## Acknowledgements
+## 🗄️ Database (Lowdb)
 
-- [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) for WhatsApp integration
-- [node-telegram-bot-api](https://github.com/yagop/node-telegram-bot-api) for Telegram integration
-- [Groq](https://groq.com) and [Gemini](https://ai.google.dev) for AI services
+Proyek ini menggunakan `lowdb` untuk menyimpan data secara persisten dalam file `db.json`. File ini berisi:
+
+*   `authorizedUsers`: Objek berisi array `admin` dan `users` WhatsApp (`62xxxx@c.us`).
+*   `conversations`: Objek di mana *key* adalah `"platform:userId"` (contoh: `"whatsapp:62xxxx@c.us"` atau `"telegram:12345678"`) dan *value* adalah array riwayat percakapan.
+
+**Penting:** Jangan mengedit `db.json` secara manual kecuali Anda tahu apa yang Anda lakukan, karena dapat merusak struktur data. Sertakan `db.json` dalam `.gitignore` Anda.
+
+## 📁 Struktur File
+
+WhaTel-AI/
+├── node.js # Kode utama aplikasi bot
+├── db.js # Modul helper untuk interaksi database lowdb
+├── db.json # File database (dibuat otomatis oleh lowdb)
+├── .env # Variabel lingkungan (buat file ini!)
+├── package.json # Dependensi & skrip proyek
+├── package-lock.json # Kunci versi dependensi
+├── README.md # Dokumentasi ini
+├── greeted_users.json # Daftar user WA yang sudah disapa (dibuat otomatis)
+├── folder-foto/ # Direktori penyimpanan gambar (dibuat otomatis)
+└── .wwebjs_auth/ # Folder sesi WhatsApp (dibuat otomatis)
+
+
+## 🐛 Troubleshooting
+
+*   **Koneksi WhatsApp Gagal / QR Code Terus Muncul:**
+    *   Hapus folder `.wwebjs_auth/`.
+    *   Pastikan ponsel yang terhubung ke WhatsApp memiliki koneksi internet stabil.
+    *   Coba jalankan di lingkungan dengan UI (non-headless) jika masalah berlanjut untuk debug (`puppeteer: { headless: false }` di `node.js`).
+*   **Error API AI (`401 Unauthorized`, `403 Forbidden`):**
+    *   Periksa kembali API Key di file `.env`. Pastikan tidak ada typo atau spasi ekstra.
+    *   Pastikan akun API Anda aktif dan memiliki kuota/billing yang cukup.
+*   **Error `Cannot find module '...'`:** Jalankan `npm install` lagi. Pastikan dependensi ada di `package.json`.
+*   **Perintah Telegram Tidak Dikenali:** Pastikan Anda adalah admin yang terdaftar di `TELEGRAM_ADMIN_LIST` dan ID Anda benar. Gunakan `/myid` untuk memeriksa.
+*   **Error Parsing Markdown (`can't parse entities`):** Laporkan bug ini! Mungkin ada respons AI atau teks lain yang berisi karakter Markdown yang tidak seimbang.
+
+## 🤝 Berkontribusi
+
+Kami menyambut kontribusi! Cara terbaik untuk berkontribusi saat ini adalah dengan:
+
+1.  **Melaporkan Bug:** Jika Anda menemukan error, buat laporan detail di [GitHub Issues](https://github.com/Rozen29/WhaTel-AI/issues). Sertakan pesan error, langkah-langkah untuk mereproduksi, dan versi Node.js yang digunakan.
+2.  **Saran Fitur:** Punya ide untuk fitur baru? Ajukan sebagai *feature request* di [GitHub Issues](https://github.com/Rozen29/WhaTel-AI/issues).
+
+## 🗺️ Roadmap & Masalah Diketahui
+
+*   **Fitur `/logs`:** Saat ini sangat dasar, hanya memberikan info untuk cek console. Pengembangan lebih lanjut diperlukan untuk menampilkan log yang relevan via Telegram.
+*   **Function Calling/Tool Use:** Belum diimplementasikan. Ini akan menjadi tambahan besar untuk kemampuan bot.
+*   **Peningkatan Error Handling:** Beberapa skenario error mungkin belum ditangani dengan baik.
+*   **Dukungan Grup WA:** Saat ini diabaikan, bisa ditambahkan sebagai fitur opsional.
+
+## 📄 Lisensi
+
+Proyek ini dilisensikan di bawah Lisensi MIT - lihat file `LICENSE` (jika ada) atau [MIT License](https://opensource.org/licenses/MIT) untuk detailnya.
+
+## 🙏 Penghargaan
+
+*   [whatsapp-web.js](https://github.com/pedroslopez/whatsapp-web.js) - Untuk integrasi WhatsApp yang luar biasa.
+*   [node-telegram-bot-api](https://github.com/yagop/node-telegram-bot-api) - Untuk integrasi Telegram yang solid.
+*   [lowdb](https://github.com/typicode/lowdb) - Untuk solusi database JSON yang simpel.
+*   [Groq](https://groq.com) & [Google Gemini](https://ai.google.dev) - Untuk layanan AI yang canggih.
