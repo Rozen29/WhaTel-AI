@@ -1,3 +1,182 @@
+# WhaTel-AI 🤖
+
+**Seamless WhatsApp & Telegram AI Assistant powered by Groq & Gemini**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<!-- Tambahkan badge lain jika relevan -->
+
+---
+
+**Choose Language / Pilih Bahasa:**
+
+[**English**](#english-version) | [**Bahasa Indonesia**](#versi-bahasa-indonesia)
+
+---
+
+## English Version <a id="english-version"></a>
+
+WhaTel-AI is a versatile bot integrating WhatsApp and Telegram with advanced AI services (Groq Llama & Google Gemini). It allows users to interact with AI via their preferred chat platform, while admins can manage users and settings centrally via Telegram.
+
+> **Developer Note:** This project was largely developed through interactions with AI. We welcome bug reports and feature suggestions via [GitHub Issues](https://github.com/Rozen29/WhaTel-AI/issues).
+
+### ✨ Key Features
+
+*   **Multi-Platform Support:** Interact with AI via WhatsApp and Telegram.
+*   **Multi-AI Integration:** Connects to Groq (Llama 3) and Google Gemini (Pro/Flash) APIs.
+*   **Vision Capabilities:** Analyzes submitted images (descriptions & OCR) using AI vision models.
+*   **WA User Management:** Admin controls via Telegram to add/remove authorized WhatsApp users.
+*   **Conversation History:** Stores chat history per user per platform in a `lowdb` database for contextual responses.
+*   **Flexible Settings:** Admins can adjust AI parameters (temperature, safety, model) via Telegram.
+*   **Centralized Administration:** All bot controls (WA connection, users, settings) are handled through secure Telegram commands.
+*   **Local Storage:** Uses `lowdb` to store user and conversation data in a `db.json` file.
+
+### 🛠️ Tech Stack
+
+*   Node.js
+*   whatsapp-web.js
+*   node-telegram-bot-api
+*   axios
+*   lowdb
+*   qrcode / qrcode-terminal
+*   dotenv
+*   Groq API
+*   Google Gemini API
+
+### ✅ Prerequisites
+
+*   **Node.js:** Version 18.0.0 or higher (due to ES Modules usage).
+*   **npm:** Usually installed with Node.js.
+*   **WhatsApp Account:** An active account to be used by the bot.
+*   **Telegram Account:** An account to manage the bot.
+*   **Telegram Bot:** Create a new bot via @BotFather on Telegram to get a token.
+*   **API Keys:**
+    *   Groq API Key (Optional, if you want to use Groq)
+    *   Google AI Gemini API Key (Optional, if you want to use Gemini)
+
+### 🚀 Installation & Setup
+
+1.  **Clone the Repository:**
+    ```bash
+    git clone https://github.com/Rozen29/WhaTel-AI.git
+    cd WhaTel-AI
+    ```
+
+2.  **Install Dependencies:**
+    ```bash
+    npm install
+    ```
+
+3.  **Create `.env` File:**
+    Create a file named `.env` in the project's root directory and populate it with the following variables. **Never** share this file or commit it to Git.
+
+    ```dotenv
+    # --- Telegram Settings ---
+    TELEGRAM_BOT_TOKEN=YOUR_TELEGRAM_BOT_TOKEN
+    # Comma-separated list of Telegram Admin User IDs (NO spaces) - REQUIRED (at least one)
+    TELEGRAM_ADMIN_LIST=ADMIN_TELEGRAM_ID_1,ADMIN_TELEGRAM_ID_2
+    # Telegram Chat ID to receive error notifications (optional)
+    TELEGRAM_ERROR_CHAT_ID=YOUR_ERROR_CHAT_ID (optional)
+
+    # --- WhatsApp Admin ---
+    # Password for /add and /remove WA user commands via Telegram
+    ADMIN_PASSWORD=CREATE_A_STRONG_PASSWORD
+
+    # --- AI Provider API Keys (Fill one or both) ---
+    GROQ_API_KEY=YOUR_GROQ_API_KEY (optional)
+    GEMINI_API_KEY=YOUR_GEMINI_API_KEY (optional)
+
+    # --- (Other variables if added) ---
+    ```
+
+    *   **Get Telegram ID:** Send `/myid` to @userinfobot or a similar bot.
+    *   **Get API Keys:** Visit the official Groq and Google AI Studio / Google Cloud websites.
+
+4.  **Add `.env` to `.gitignore`:**
+    Ensure your `.gitignore` file (create one if it doesn't exist) includes the following lines to prevent leaking credentials:
+    ```gitignore
+    node_modules/
+    .env
+    db.json
+    folder-foto/
+    *.log
+    .wwebjs_auth/
+    ```
+
+### ▶️ Running the Bot
+
+1.  **Start the Bot:**
+    ```bash
+    npm start
+    ```
+
+2.  **Scan WhatsApp QR Code (First Time):**
+    On the first run, a QR code will appear in the terminal (and might be sent to the first Telegram admin if the bot can already send messages). Scan this code using your WhatsApp mobile app (Linked Devices -> Link a device).
+
+3.  **Bot Ready:** Once connected, the bot will be ready to receive commands from admins on Telegram and respond to authorized WhatsApp users.
+
+### 💬 Usage
+
+The bot has two main interaction modes:
+
+1.  **WhatsApp Users:** Users whose numbers have been added by an admin via Telegram can send text messages or images to the bot's WhatsApp number and receive AI responses.
+2.  **Telegram Admins:** Admins whose Telegram IDs are in `TELEGRAM_ADMIN_LIST` can control all aspects of the bot using commands in a private Telegram chat with the bot.
+
+### 📜 Telegram Admin Commands
+
+| Command                   | Description                                                               |
+| :------------------------ | :---------------------------------------------------------------------- |
+| `/connect`                | Connect/start connection to WhatsApp & display QR Code.                 |
+| `/disconnect`             | Disconnect from WhatsApp.                                               |
+| `/status`                 | Show WhatsApp connection, bot & AI provider status.                     |
+| `/start_chatbot`          | Enable AI responses for WhatsApp users.                                 |
+| `/stop_chatbot`           | Disable AI responses for WhatsApp users.                                |
+| `/add [wa_number]`        | Add WhatsApp number to user list (e.g., `/add 6281...`). Requires admin password. |
+| `/remove [wa_number]`     | Remove WhatsApp number from user list. Requires admin password.         |
+| `/list`                   | Show list of authorized WhatsApp admins and users.                      |
+| `/show_model`             | Show available and selected AI providers and models.                   |
+| `/use_provider [index]`   | Change active AI provider (see index from `/show_model`).               |
+| `/use_model [index]`      | Change active AI text model (for current provider).                     |
+| `/use_vision_model [index]`| Change active AI vision model (for current provider).                   |
+| `/settings`               | Show/change AI settings (safety & config, currently Gemini).            |
+| `/settings [path] [val]`| Change specific setting (e.g., `/settings safety.hate block`).          |
+| `/history`                | Show your recent Telegram conversation history with the bot.            |
+| `/clear_history`          | Clear your Telegram conversation history with the bot.                  |
+| `/ocr`                    | (Reply to image) Extract text from the replied image.                   |
+| `/myid`                   | Show your Telegram user information.                                    |
+| `/help`                   | Display this help message.                                              |
+| `/logs`                   | (Basic) Show basic log info (check console for details).                |
+| `/version` or `/show`   | Display the current bot version.                                        |
+| `/cancel`                 | Cancel the pending `/add` or `/remove` password entry process.          |
+
+### ⚙️ Configuration
+
+*   **Core Variables:** Main configuration (tokens, API keys, admins) is done via the `.env` file.
+*   **AI Prompts:** You can change the base AI behavior by editing the `SYSTEM_PROMPT`, `VISION_PROMPT`, and `OCR_PROMPT` constants within the `node.js` file.
+*   **AI Parameters:** Settings like *temperature* (for Groq, in `node.js`) and *safety/generation settings* (for Gemini, via `/settings` in Telegram) can be adjusted.
+
+### 🗄️ Database (Lowdb)
+
+This project uses `lowdb` to persist data in the `db.json` file. This file contains:
+
+*   `authorizedUsers`: An object containing `admin` and `users` arrays of WhatsApp IDs (`62xxxx@c.us`).
+*   `conversations`: An object where the *key* is `"platform:userId"` (e.g., `"whatsapp:62xxxx@c.us"` or `"telegram:12345678"`) and the *value* is the conversation history array.
+
+**Important:** Do not manually edit `db.json` unless you know what you are doing, as it might corrupt the data structure. Include `db.json` in your `.gitignore`.
+
+### 📁 File Structure
+
+WhaTel-AI/
+├── node.js # Main bot application code
+├── db.js # Helper module for lowdb database interactions
+├── db.json # Database file (auto-created by lowdb)
+├── .env # Environment variables (create this file!)
+├── package.json # Project dependencies & scripts
+├── package-lock.json # Locked dependency versions
+├── README.md # This documentation
+├── greeted_users.json # List of greeted WA users (auto-created)
+├── folder-foto/ # Image storage directory (auto-created)
+└── .wwebjs_auth/ # WhatsApp session folder (auto-created)
+
 
 ### 🐛 Troubleshooting
 
