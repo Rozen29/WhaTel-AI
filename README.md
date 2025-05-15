@@ -197,6 +197,7 @@ This project uses a combination of `lowdb` for primary structured data and direc
 
 ### 📁 File Structure
 
+```bash
 WhaTel-AI/
 ├── WhaTel-AI.js # Main bot application code (ES Module)
 ├── db.js # Helper module for lowdb database interactions (ES Module)
@@ -210,6 +211,7 @@ WhaTel-AI/
 ├── README.md # This documentation
 ├── folder-foto/ # Image storage directory (auto-created)
 └── .wwebjs_auth/ # WhatsApp session folder (auto-created)
+```
 
 ### 🐛 Troubleshooting
 
@@ -438,6 +440,7 @@ Proyek ini menggunakan kombinasi `lowdb` untuk data terstruktur utama dan akses 
 
 ### 📁 Struktur File
 
+```bash
 WhaTel-AI/
 ├── WhaTel-AI.js # Kode utama aplikasi bot (ES Module)
 ├── db.js # Modul helper untuk interaksi database lowdb (ES Module)
@@ -451,7 +454,7 @@ WhaTel-AI/
 ├── README.md # Dokumentasi ini
 ├── folder-foto/ # Direktori penyimpanan gambar (dibuat otomatis)
 └── .wwebjs_auth/ # Folder sesi WhatsApp (dibuat otomatis)
-
+```
 ### 🐛 Pemecahan Masalah
 
 *   **Koneksi WhatsApp Gagal / Kode QR Terus Muncul:**
